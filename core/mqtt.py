@@ -51,11 +51,11 @@ def subscribe(client: mqtt_client, grade):
         if(msg.topic == cementWeight):
             cement = float(msg.payload.decode())
             if (cement >= grade['cement']):
-                publish(client, cementTopic)
+                publish(client, cementTopic, "stop")
         if(msg.topic == waterWeight):
             water = float(msg.payload.decode())
             if (water >= grade['water']):
-                publish(client, waterTopic)
+                publish(client, waterTopic, "stop")
         # _20mm = grade['20mm']
         # _10mm = grade['10mm']
         # sand = grade['sand']
@@ -77,8 +77,8 @@ def subscribe(client: mqtt_client, grade):
 # Double click switch in Node Red
 # See On Payload and Off Payload
 # That's the message you should send to control the switch
-def publish(client, topic):
-    msg = "stop"
+def publish(client, topic, msg):
+    msg = msg
     result = client.publish(topic, msg)
     status = result[0]
     if status == 0:
@@ -113,8 +113,10 @@ def run():
         grade[x] *= inp_meter
     print(grade)
 
-    
     subscribe(client, grade)
+    publish(client, cementTopic, "start")
+    publish(client, waterTopic, "start")
+
     # Paho Python client provides three loops
     # loop_start()
     # loop_forever()
