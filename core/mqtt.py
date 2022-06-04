@@ -52,7 +52,7 @@ def subscribe(client: mqtt_client, grade):
             cement = float(msg.payload.decode())
             if (cement >= grade['cement']):
                 publish(client, cementTopic, "stop")
-        if(msg.topic == waterWeight):
+        elif(msg.topic == waterWeight):
             water = float(msg.payload.decode())
             if (water >= grade['water']):
                 publish(client, waterTopic, "stop")
@@ -137,5 +137,3 @@ def run():
     # run()
 
 run()
-
-# hello world
