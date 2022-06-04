@@ -7,3 +7,7 @@ dict = dictionary
 val = value
 inp = input
 msg = message
+
+
+# Problem
+In MQTT website, if you spam START, the numbers will be increasingly faster

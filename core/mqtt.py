@@ -43,79 +43,99 @@ def connect_mqtt():
     client.connect(broker, port)
     return client
 
-# Subcribe to topic (e.g: Cement, Water, etc)
-def subscribe(client: mqtt_client, grade):
-    # On_message = the func will only be triggered once server side sends msg
-    def on_message(client, userdata, msg):
-        print(f"Received `{msg.payload.decode()}` from `{msg.topic}` topic")
-        if(msg.topic == cementWeight):
-            cement = float(msg.payload.decode())
-            if (cement >= grade['cement']):
-                publish(client, cementTopic, "stop")
-        elif(msg.topic == waterWeight):
-            water = float(msg.payload.decode())
-            if (water >= grade['water']):
-                publish(client, waterTopic, "stop")
-        # _20mm = grade['20mm']
-        # _10mm = grade['10mm']
-        # sand = grade['sand']
-        # d100 = grade['d100']
-        # d45 = grade['d45']
+class MyMqtt:
+    def __init__(self, client, topic_list, grade_key, grade_val):
+        self.client = client
+        self.topic_list = topic_list
+        self.grade_key = grade_key
+        self.grade_val = grade_val
 
-    client.subscribe(cementRelay)
-    client.subscribe(waterRelay)
-    client.subscribe(cementWeight)
-    client.subscribe(waterWeight)
-    client.on_message = on_message
+    # Subcribe to topic (e.g: Cement, Water, etc)
+    def subscribe(self, client: mqtt_client, topic_list, grade_val):
+        # On_message = the func will only be triggered once server side sends msg
+        def on_message(client, userdata, msg):
+            print(f"Received `{msg.payload.decode()}` from `{msg.topic}` topic")
+            
+            if(msg.payload.decode().isdigit()):
+                amount = float(msg.payload.decode())
+            else:
+                amount = -1
+            if (amount >= grade_val or amount == -1):
+                self.publish(client, topic_list['relay'], "stop")
+            # _20mm = grade['20mm']
+            # _10mm = grade['10mm']
+            # sand = grade['sand']
+            # d100 = grade['d100']
+            # d45 = grade['d45']
 
-# To stop node red cement weight
-# send 'stop' to the relay that is connected to loop
-# sending 'stop' to cement_relay that is connected to cement switch 
-# will only turn the switch off and the weight will still increasing
-# publish = send msg to the server
-#
-# Double click switch in Node Red
-# See On Payload and Off Payload
-# That's the message you should send to control the switch
-def publish(client, topic, msg):
-    msg = msg
-    result = client.publish(topic, msg)
-    status = result[0]
-    if status == 0:
-        print(f"Sent `{msg}` to topic `{topic}`")
-    else:
-        print(f"Failed to send message to topic {topic}")
+        client.subscribe(topic_list['relay'])
+        client.subscribe(topic_list['weight'])
+        client.on_message = on_message
 
+    # To stop node red cement weight
+    # send 'stop' to the relay that is connected to loop
+    # sending 'stop' to cement_relay that is connected to cement switch 
+    # will only turn the switch off and the weight will still increasing
+    # publish = send msg to the server
+    #
+    # Double click switch in Node Red
+    # See On Payload and Off Payload
+    # That's the message you should send to control the switch
+    def publish(self, client, topic, msg):
+        msg = msg
+        result = client.publish(topic, msg)
+        status = result[0]
+        if status == 0:
+            print(f"Sent `{msg}` to topic `{topic}`")
+        else:
+            print(f"Failed to send message to topic {topic}")
+
+def getKeys(dict):
+    return dict.keys()
 
 def run():
     client = connect_mqtt()
-    grade = None
-    while grade == None:
+    grade_dict = None
+    while grade_dict == None:
         print(gradePrint)
         inp_grade = input('Choose Grade:')
         match inp_grade:
             case '1':
-                grade = grade30NormalMix
+                grade_dict = grade30NormalMix
                 msg = 'Grade 30 Normal Mix'
             case '2':
-                grade = grade20NormalMix
+                grade_dict = grade20NormalMix
                 msg = 'Grade 20 Normal Mix'
             case '3':
-                grade = gradeCMotar
+                grade_dict = gradeCMotar
                 msg = 'Grade C Motar'
             # 'case _:' is the 'default:' in C++
             case _:
                 print('Invalid Input')
     print('Chosen grade: ' + msg)
-
     inp_meter = float(input('Enter Cubic Meter:'))
-    for x in grade:
-        grade[x] *= inp_meter
-    print(grade)
 
-    subscribe(client, grade)
-    publish(client, cementTopic, "start")
-    publish(client, waterTopic, "start")
+    obj_list = []
+    grade_keys = getKeys(grade_dict)
+
+    for key in grade_dict:
+        topic_list = {
+            'topic' : key,
+            'relay' : key + '_relay',
+            'weight' : key + 'weight'
+        }
+        grade_dict[key] *= inp_meter
+        grade_val = grade_dict[key]
+        obj_list.append(MyMqtt(client, topic_list, key, grade_val))
+    print(grade_dict)
+
+   #  def __init__(self, client, topic_list, grade_key, grade_val): 
+
+    for obj in obj_list:
+        # have to put 'obj.topic_list' instead of 'topic_list'
+        # if not, it will use the last elm of topic_list
+        obj.subscribe(client, obj.topic_list, obj.grade_val)
+        obj.publish(client, obj.topic_list['topic'], "start")
 
     # Paho Python client provides three loops
     # loop_start()
