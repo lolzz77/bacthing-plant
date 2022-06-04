@@ -44,15 +44,16 @@ def connect_mqtt():
     return client
 
 # Subcribe to topic (e.g: Cement, Water, etc)
-def subscribeTopic(client: mqtt_client, topic, grade, key):
+def subscribe(client: mqtt_client, topic_dict, grade_val, topic):
     # On_message = the func will only be triggered once server side sends msg
     def on_message(client, userdata, msg):
         print(f"Received `{msg.payload.decode()}` from `{msg.topic}` topic")    
-        amount = -1
         if(msg.payload.decode().isdigit()):
             amount = float(msg.payload.decode())
-        if (amount >= grade[key] or amount != -1):
-            publish(client, key)
+        else:
+            amount = -1
+        if (amount >= grade_val or amount == -1):
+            publish(client, topic)
         # _20mm = grade['20mm']
         # _10mm = grade['10mm']
         # sand = grade['sand']
@@ -60,10 +61,10 @@ def subscribeTopic(client: mqtt_client, topic, grade, key):
         # d45 = grade['d45']
 
     # Subscribe to relay so you can control relay
-    client.subscribe(topic[0])
+    client.subscribe(topic_dict['relay'])
 
     # Subcribe to weight, so you can see how much weight issued
-    client.subscribe(topic[1])
+    client.subscribe(topic_dict['weight'])
 
     client.on_message = on_message
 
@@ -88,11 +89,24 @@ def publish(client, topic):
 def getList(dict):
     return dict.keys()
 
-def createThread(grade_list, client, grade_dict):
-    for x in grade_list:
-        topic = [x + '_relay', x + 'weight']
-        x = threading.Thread(target=subscribeTopic(client, topic ,grade_dict, x), name=x+'_t')
-        x.start()
+def createThread(list_elm, client, grade_val):
+    topic_dict = {
+        'relay' : list_elm + '_relay', 
+        'weight' : list_elm + 'weight'
+        }
+    t = threading.Thread(target=subscribe(client, topic_dict ,grade_val, list_elm))
+    return t
+    # x.join(1.0)
+    # t1 = threading.Thread(target=subscribe(client, topic ,grade_dict, x), name='t1')
+    # t2 = threading.Thread(target=subscribe(client, topic ,grade_dict, x), name='t2')
+    # t3 = threading.Thread(target=subscribe(client, topic ,grade_dict, x), name='t3')
+    # t4 = threading.Thread(target=subscribe(client, topic ,grade_dict, x), name='t4')
+    # t5 = threading.Thread(target=subscribe(client, topic ,grade_dict, x), name='t5')
+    # t1.start()
+    # t2.start()
+    # t3.start()
+    # t4.start()
+    # t5.start()
 
 def run():
     client = connect_mqtt()
@@ -119,9 +133,18 @@ def run():
     for x in grade_dict:
         grade_dict[x] *= inp_meter
     print(grade_dict)
+    
+    
 
     grade_list = getList(grade_dict)
-    createThread(grade_list, client, grade_dict)
+    thread_list = []
+    for x in grade_list:
+        t = createThread(x, client, grade_dict[x])
+        thread_list.append(t)
+    for thread in thread_list:
+        thread.start()
+    for thread in thread_list:
+        thread.join()
 
     # Paho Python client provides three loops
     # loop_start()

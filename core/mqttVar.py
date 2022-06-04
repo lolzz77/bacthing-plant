@@ -26,12 +26,6 @@ client_id = f'python-mqtt-{random.randint(0, 1000)}'
 grade30NormalMix = {
         'cement': 350,
         'water': 180,
-        '20mm': 930,
-        '10mm': 360,
-        'sand': 546,
-        'total': 1836,
-        'd100': 2100,
-        'd45': 1400
     }
 
 # 20
