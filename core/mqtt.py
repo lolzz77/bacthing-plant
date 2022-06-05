@@ -44,33 +44,45 @@ def connect_mqtt():
     return client
 
 class MyMqtt:
-    def __init__(self, client, topic_list, grade_key, grade_val):
+    def __init__(self, client, topic_list, grade_key, grade_val, grade_dict):
         self.client = client
         self.topic_list = topic_list
         self.grade_key = grade_key
         self.grade_val = grade_val
+        self.grade_dict = grade_dict
 
     # Subcribe to topic (e.g: Cement, Water, etc)
     def subscribe(self, client: mqtt_client, topic_list, grade_val):
         # On_message = the func will only be triggered once server side sends msg
+        #
+        # You can find out what class type are those parameters
+        # On debug window, expand the 'special variable' -> '__class__'
         def on_message(client, userdata, msg):
+            topic = msg.topic[:-6]
             print(f"Received `{msg.payload.decode()}` from `{msg.topic}` topic")
-            
-            if(msg.payload.decode().isdigit()):
-                amount = float(msg.payload.decode())
-            else:
-                amount = -1
-            if (amount >= grade_val or amount == -1):
-                self.publish(client, topic_list['relay'], "stop")
+            if(msg.payload.decode()=="start"):
+                return
+            self.checkStop(msg.payload.decode(), topic)
+            # self.publish(client, topic_list['topic'], "stop")
+            # if(msg.payload.decode().isdigit()):
+            #     amount = float(msg.payload.decode())
+            # else:
+            #     amount = -1
+            # if (amount >= self.grade_val or amount == -1):
+            #     self.publish(client, topic, "stop")
             # _20mm = grade['20mm']
             # _10mm = grade['10mm']
             # sand = grade['sand']
             # d100 = grade['d100']
             # d45 = grade['d45']
 
-        client.subscribe(topic_list['relay'])
-        client.subscribe(topic_list['weight'])
-        client.on_message = on_message
+        self.client.subscribe(topic_list['relay'])
+        self.client.subscribe(topic_list['weight'])
+
+        # Notice that it passes function without paranthesis
+        # You don tneed to pass arguments, it will receive argument from server automatically
+        # https://www.geeksforgeeks.org/python-invoking-functions-with-and-without-parentheses/
+        self.client.on_message = on_message
 
     # To stop node red cement weight
     # send 'stop' to the relay that is connected to loop
@@ -89,6 +101,20 @@ class MyMqtt:
             print(f"Sent `{msg}` to topic `{topic}`")
         else:
             print(f"Failed to send message to topic {topic}")
+
+    # Why i make this function
+    # aparrently, the on_message function is independant from obj's attribute itself.
+    # if you use self.grade_val here, the value is referred to the last row of grade_dict
+    # e.g: cement should be 350, but it reffered to d45 one, that is 1400
+    def checkStop(self, msg, topic):
+        grade_val = self.grade_dict[topic]
+        if(msg.isdigit()):
+            amount = float(msg)
+        else:
+            amount = -1
+        if(amount >= grade_val or amount == -1):
+            self.publish(self.client, topic, "stop")
+            self.on_message = None
 
 def getKeys(dict):
     return dict.keys()
@@ -126,10 +152,15 @@ def run():
         }
         grade_dict[key] *= inp_meter
         grade_val = grade_dict[key]
-        obj_list.append(MyMqtt(client, topic_list, key, grade_val))
+        # Every obj has correct of its own topic_list
+        obj_list.append(MyMqtt(client, topic_list, key, grade_val, grade_dict))
     print(grade_dict)
-
-   #  def __init__(self, client, topic_list, grade_key, grade_val): 
+    
+    topic_list = []
+    key = ""
+    grade_val = 0
+    grade_keys = []
+    grade_dict = []
 
     for obj in obj_list:
         # have to put 'obj.topic_list' instead of 'topic_list'
