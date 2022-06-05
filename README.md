@@ -1,4 +1,7 @@
-#
+# Version
+1.0.1   Program will send 'start' to NodeRed when running
+        Program will not keep receiving msg from NodeRed after sending 'stop' to NodeRed
+1.0.0   Initial
 
 # python version
 Python 3.10.4
@@ -12,11 +15,3 @@ msg = message
 
 # Problem
 In MQTT website, if you spam START, the numbers will be increasingly faster
-
-# Learnt
-You can pass function without paranthesis
-https://www.geeksforgeeks.org/python-invoking-functions-with-and-without-parentheses/
-def test(a):
-    print a
-x = test("a") OR
-x = test
