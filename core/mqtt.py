@@ -59,7 +59,8 @@ class MyMqtt:
         # On debug window, expand the 'special variable' -> '__class__'
         def on_message(client, userdata, msg):
             topic = msg.topic[:-6]
-            print(f"Received `{msg.payload.decode()}` from `{msg.topic}` topic")
+            if(msg.payload.decode() != 'stop'):
+                print(f"Received `{msg.payload.decode()}` from `{msg.topic}` topic")
             if(msg.payload.decode()=="start"):
                 return
             self.checkStop(msg.payload.decode(), topic)
@@ -112,7 +113,7 @@ class MyMqtt:
             amount = float(msg)
         else:
             amount = -1
-        if(amount >= grade_val or amount == -1):
+        if((amount >= grade_val or amount == -1) and msg!='stop'):
             self.publish(self.client, topic, "stop")
             self.on_message = None
 
